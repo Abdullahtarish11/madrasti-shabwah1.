@@ -6,7 +6,7 @@ export const managerRouter = Router();
 managerRouter.use(requireAuth);
 managerRouter.use((req: AuthedRequest, res, next) => {
   const role = req.user?.role;
-  if (role !== 'manager' && role !== 'admin') {
+  if (role !== 'school_manager' && role !== 'admin') {
     res.status(403).json({ error: 'هذه الصفحة مخصصة لمدير المدرسة' });
     return;
   }
