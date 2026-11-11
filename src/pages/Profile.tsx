@@ -33,14 +33,10 @@ export default function Profile() {
   }, [user]);
 
   useEffect(() => {
-    api
-      .get<{ districts: Option[]; schools: Option[]; grades: Option[] }>('/api/public/options')
-      .then((data) => {
-        setDistricts(data.districts ?? []);
-        setSchools(data.schools ?? []);
-        setGrades(data.grades ?? []);
-      })
-      .catch(() => undefined);
+    const list = (data: any, key: string): Option[] => (Array.isArray(data) ? data : data?.[key] ?? []);
+    api.get<any>('/api/public/districts').then((data) => setDistricts(list(data, 'districts'))).catch(() => undefined);
+    api.get<any>('/api/public/schools').then((data) => setSchools(list(data, 'schools'))).catch(() => undefined);
+    api.get<any>('/api/public/grades').then((data) => setGrades(list(data, 'grades'))).catch(() => undefined);
   }, []);
 
   if (loading) return <Loading label="جارٍ تحميل الملف الشخصي…" />;
