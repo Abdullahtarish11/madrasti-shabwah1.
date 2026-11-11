@@ -452,7 +452,7 @@ export default function AdminPortal() {
                 <option value="">كل الأدوار</option>
                 <option value="student">الطلاب</option>
                 <option value="teacher">المعلمون</option>
-                <option value="manager">مديرو المدارس</option>
+                <option value="school_manager">مديرو المدارس</option>
                 <option value="admin">مسؤولو المنصة</option>
               </select>
             }
@@ -485,7 +485,7 @@ export default function AdminPortal() {
                         >
                           <option value="student">طالب</option>
                           <option value="teacher">معلم</option>
-                          <option value="manager">مدير مدرسة</option>
+                          <option value="school_manager">مدير مدرسة</option>
                           <option value="admin">مسؤول</option>
                         </select>
                       </td>
