@@ -123,7 +123,22 @@ publicRouter.get('/schools/:id', async (req, res) => {
     ? catalog.grades.filter((g) => school.gradeIds.includes(g.id))
     : catalog.grades.filter((g) => g.levelId === school.levelId);
   const subjects = catalog.subjects.filter((s) => grades.some((g) => g.id === s.gradeId));
-  res.json({ school, district, level, grades, subjectsCount: subjects.length });
+  const teachers = db.users
+    .filter((u) => u.role === 'teacher' && u.approved && u.schoolId === school.id)
+    .map((u) => ({ id: u.id, fullName: u.fullName, subjectIds: u.subjectIds }));
+  res.json({
+    school: { ...school, districtName: district?.name ?? '', levelName: level?.name ?? '' },
+    district,
+    level,
+    grades,
+    subjectsCount: subjects.length,
+    teachers,
+    stats: {
+      students: db.users.filter((u) => u.role === 'student' && u.schoolId === school.id).length,
+      lessons: db.lessons.filter((l) => l.published && l.schoolId === school.id).length,
+      liveSessions: db.liveSessions.filter((s) => s.schoolId === school.id).length,
+    },
+  });
 });
 
 publicRouter.get('/subjects', async (req, res) => {
