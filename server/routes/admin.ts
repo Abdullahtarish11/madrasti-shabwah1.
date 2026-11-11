@@ -195,7 +195,7 @@ const schoolsCrud = crud(
   },
   (row, body) => {
     (['name', 'districtId', 'levelId', 'gender', 'address', 'phone'] as const).forEach((field) => {
-      if (body[field] !== undefined) (row as Record<string, unknown>)[field] = String(body[field]);
+      if (body[field] !== undefined) (row as unknown as Record<string, unknown>)[field] = String(body[field]);
     });
     if (body.studentsCount !== undefined) row.studentsCount = Number(body.studentsCount) || 0;
     if (body.teachersCount !== undefined) row.teachersCount = Number(body.teachersCount) || 0;
@@ -350,7 +350,7 @@ const announcementsCrud = crud(
   },
   (row, body) => {
     (['title', 'body', 'audience'] as const).forEach((field) => {
-      if (body[field] !== undefined) row[field] = String(body[field]);
+      if (body[field] !== undefined) (row as unknown as Record<string, unknown>)[field] = String(body[field]);
     });
     if (body.pinned !== undefined) row.pinned = Boolean(body.pinned);
   },

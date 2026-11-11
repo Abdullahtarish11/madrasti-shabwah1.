@@ -122,7 +122,7 @@ teacherRouter.patch('/lessons/:id', (req: AuthedRequest, res) => {
   const body = req.body ?? {};
   const fields = ['title', 'description', 'content', 'videoUrl', 'fileUrl', 'gradeId', 'subjectId'] as const;
   fields.forEach((field) => {
-    if (body[field] !== undefined) (lesson as Record<string, unknown>)[field] = String(body[field]);
+    if (body[field] !== undefined) (lesson as unknown as Record<string, unknown>)[field] = String(body[field]);
   });
   if (body.durationMin !== undefined) lesson.durationMin = Number(body.durationMin) || lesson.durationMin;
   if (body.order !== undefined) lesson.order = Number(body.order) || lesson.order;

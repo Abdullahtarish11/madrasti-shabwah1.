@@ -135,8 +135,8 @@ publicRouter.get('/schools/:id', async (req, res) => {
     teachers,
     stats: {
       students: db.users.filter((u) => u.role === 'student' && u.schoolId === school.id).length,
-      lessons: db.lessons.filter((l) => l.published && l.schoolId === school.id).length,
-      liveSessions: db.liveSessions.filter((s) => s.schoolId === school.id).length,
+      lessons: db.lessons.filter((l) => l.published && (l as unknown as { schoolId?: string | null }).schoolId === school.id).length,
+      liveSessions: db.liveSessions.filter((s) => (s as unknown as { schoolId?: string | null }).schoolId === school.id).length,
     },
   });
 });
