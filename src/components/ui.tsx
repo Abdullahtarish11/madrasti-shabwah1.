@@ -61,9 +61,13 @@ export function StatCard({
 export function Badge({ children, tone = 'slate' }: { children: ReactNode; tone?: string }) {
   const tones: Record<string, string> = {
     slate: 'bg-slate-100 text-slate-600',
+    default: 'bg-slate-100 text-slate-600',
     brand: 'bg-brand-100 text-brand-700',
+    success: 'bg-brand-100 text-brand-700',
     amber: 'bg-amber-100 text-amber-700',
+    warning: 'bg-amber-100 text-amber-700',
     rose: 'bg-rose-100 text-rose-700',
+    error: 'bg-rose-100 text-rose-700',
     sky: 'bg-sky-100 text-sky-700',
   };
   return <span className={`badge ${tones[tone] ?? tones.slate}`}>{children}</span>;
@@ -102,23 +106,42 @@ export function ErrorBox({ message, onRetry }: { message: string; onRetry?: () =
   );
 }
 
-export function Alert({ tone = 'brand', children }: { tone?: 'brand' | 'amber' | 'rose'; children: ReactNode }) {
-  const tones = {
+export function Alert({
+  tone,
+  kind,
+  message,
+  children,
+}: {
+  tone?: string;
+  kind?: string;
+  message?: string;
+  children?: ReactNode;
+}) {
+  const key = tone ?? kind ?? 'brand';
+  const tones: Record<string, string> = {
     brand: 'border-brand-200 bg-brand-50 text-brand-800',
+    success: 'border-brand-200 bg-brand-50 text-brand-800',
     amber: 'border-amber-200 bg-amber-50 text-amber-800',
+    warn: 'border-amber-200 bg-amber-50 text-amber-800',
+    warning: 'border-amber-200 bg-amber-50 text-amber-800',
     rose: 'border-rose-200 bg-rose-50 text-rose-800',
+    error: 'border-rose-200 bg-rose-50 text-rose-800',
   };
-  return <div className={`rounded-xl border px-4 py-3 text-sm leading-6 ${tones[tone]}`}>{children}</div>;
+  return (
+    <div className={`rounded-xl border px-4 py-3 text-sm leading-6 ${tones[key] ?? tones.brand}`}>
+      {children ?? message}
+    </div>
+  );
 }
 
 export function Modal({
-  open,
+  open = true,
   title,
   onClose,
   children,
   wide,
 }: {
-  open: boolean;
+  open?: boolean;
   title: string;
   onClose: () => void;
   children: ReactNode;
@@ -183,24 +206,27 @@ export function Tabs<T extends string>({
   active,
   onChange,
 }: {
-  tabs: { id: T; label: string }[];
+  tabs: { id?: T; key?: T; label: string }[];
   active: T;
   onChange: (id: T) => void;
 }) {
   return (
     <div className="mb-4 flex gap-1 overflow-x-auto rounded-xl bg-slate-100 p-1">
-      {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          type="button"
-          onClick={() => onChange(tab.id)}
-          className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition ${
-            active === tab.id ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
-          }`}
-        >
-          {tab.label}
-        </button>
-      ))}
+      {tabs.map((tab) => {
+        const id = (tab.id ?? tab.key) as T;
+        return (
+          <button
+            key={id}
+            type="button"
+            onClick={() => onChange(id)}
+            className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-medium transition ${
+              active === id ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            {tab.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
