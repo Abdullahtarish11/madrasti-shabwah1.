@@ -6,6 +6,7 @@ import { authRouter } from './routes/auth';
 import { studentRouter } from './routes/student';
 import { teacherRouter } from './routes/teacher';
 import { adminRouter } from './routes/admin';
+import { managerRouter } from './routes/manager';
 import { db, UPLOAD_DIR } from './store';
 import { currentUser } from './auth';
 import { ensureDemoAccounts } from './bootstrap';
@@ -30,6 +31,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/student', studentRouter);
 app.use('/api/teacher', teacherRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/manager', managerRouter);
 
 /** Authenticated file access: PDFs, images and recordings uploaded by teachers/admins. */
 app.get('/api/files/:name', (req, res) => {
