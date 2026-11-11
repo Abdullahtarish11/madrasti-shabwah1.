@@ -63,7 +63,7 @@ app.use('/api', (_req, res) => {
 const clientDir = path.join(process.cwd(), 'dist');
 if (fs.existsSync(clientDir)) {
   app.use(express.static(clientDir, { index: false, maxAge: '1h' }));
-  app.get('/*splat', (req, res, next) => {
+  app.get('/{*splat}', (req, res, next) => {
     if (req.path.startsWith('/api/')) {
       next();
       return;
