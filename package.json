@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "concurrently -n api,web -c blue,green \"tsx watch server/index.ts\" \"vite\"",
     "build": "vite build && tsc -p tsconfig.server.json",
-    "start": "node server-dist/index.js",
+    "start": "node server-dist/server/index.js",
     "test": "node scripts/test-api.mjs"
   },
   "dependencies": {
