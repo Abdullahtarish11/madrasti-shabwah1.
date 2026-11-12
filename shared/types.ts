@@ -267,6 +267,9 @@ export interface Upload {
   mime: string;
   size: number;
   path: string;
+  /** Object path inside the Supabase Storage bucket when the file lives remotely. */
+  storagePath?: string;
+  bucket?: string;
   ownerId: string;
   createdAt: string;
 }
@@ -283,7 +286,15 @@ export interface AppDatabase {
   programs: CollegeProgram[];
   users: User[];
   passwordHashes: Record<string, string>;
-  sessions: { token: string; userId: string; expiresAt: string }[];
+  sessions: {
+    token: string;
+    userId: string;
+    expiresAt: string;
+    /** Supabase Auth tokens for user-scoped (RLS) requests. Never sent to the browser. */
+    accessToken?: string;
+    refreshToken?: string;
+    supabaseUserId?: string;
+  }[];
   courses: Course[];
   lessons: Lesson[];
   enrollments: Enrollment[];

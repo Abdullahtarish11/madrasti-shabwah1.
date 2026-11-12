@@ -21,13 +21,35 @@ export function verifyPassword(password: string, stored: string | undefined): bo
   return candidate.length === expected.length && crypto.timingSafeEqual(candidate, expected);
 }
 
-export function createSession(userId: string): { token: string; expiresAt: string } {
+export interface RemoteTokens {
+  accessToken: string;
+  refreshToken: string;
+  supabaseUserId: string;
+}
+
+export function createSession(userId: string, remote?: RemoteTokens): { token: string; expiresAt: string } {
   const token = crypto.randomBytes(32).toString('hex');
   const expiresAt = new Date(Date.now() + SESSION_DAYS * 86400000).toISOString();
   db.sessions = db.sessions.filter((s) => new Date(s.expiresAt).getTime() > Date.now());
-  db.sessions.push({ token, userId, expiresAt });
+  db.sessions.push({ token, userId, expiresAt, ...(remote ?? {}) });
   save();
   return { token, expiresAt };
+}
+
+/** Session record for the current request (used for user-scoped Supabase calls). */
+export function sessionFor(req: Request) {
+  const cookies = parseCookies(req.headers.cookie);
+  const token = cookies[SESSION_COOKIE] || (req.headers.authorization?.replace('Bearer ', '') ?? '');
+  if (!token) return null;
+  const session = db.sessions.find((s) => s.token === token);
+  if (!session) return null;
+  if (new Date(session.expiresAt).getTime() < Date.now()) return null;
+  return session;
+}
+
+/** Supabase access token of the signed-in user, so RLS policies apply to server calls. */
+export function accessTokenFor(req: Request): string | null {
+  return sessionFor(req)?.accessToken ?? null;
 }
 
 export function destroySession(token: string | undefined) {
