@@ -3,7 +3,7 @@ import { db } from '../store';
 import { getCatalog } from '../catalog';
 import { makePdf } from '../pdf';
 import { livekitStatus } from '../livekit';
-import { supabaseConfig } from '../supabase';
+import { supabaseConfig, supabaseStatus } from '../supabase';
 import fs from 'node:fs';
 import path from 'node:path';
 import { UPLOAD_DIR } from '../store';
@@ -14,6 +14,7 @@ publicRouter.get('/health', (_req, res) => {
   res.json({
     status: 'ok',
     mode: supabaseConfig() ? 'supabase' : 'local',
+    supabase: supabaseStatus(),
     livekit: livekitStatus(),
     time: new Date().toISOString(),
   });
@@ -47,6 +48,7 @@ publicRouter.get('/overview', async (_req, res) => {
     sources: catalog.sources,
     livekit: livekitStatus(),
     mode: supabaseConfig() ? 'supabase' : 'local',
+    supabase: supabaseStatus(),
   });
 });
 
