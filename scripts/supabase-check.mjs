@@ -32,10 +32,7 @@ if (!ANON && !SERVICE) {
   process.exit(0);
 }
 
-const emptyTables = [];
-console.log(
-  '\nملاحظة: rows=0 تعني إما جدولًا فارغًا فعلًا أو منع RLS للقراءة بالمفتاح العام؛ service_role يوضح الفرق.',
-);
+const key = SERVICE || ANON;
 const headers = { apikey: key, Authorization: `Bearer ${key}` };
 let failures = 0;
 
@@ -120,5 +117,8 @@ if (ANON) {
   console.log('SKIP  auth settings (no anon key)');
 }
 
+console.log(
+  '\nملاحظة: rows=0 تعني إما جدولًا فارغًا فعلًا أو منع RLS للقراءة بالمفتاح العام؛ service_role يوضح الفرق.',
+);
 console.log(failures === 0 ? '\nSupabase connection check passed.' : `\nSupabase check finished with ${failures} failure(s).`);
 process.exit(failures === 0 ? 0 : 1);
