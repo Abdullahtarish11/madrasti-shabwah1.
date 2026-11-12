@@ -1,8 +1,11 @@
 import { Router } from 'express';
 import multer from 'multer';
+import fs from 'node:fs';
 import crypto from 'node:crypto';
 import path from 'node:path';
 import { db, save, uid, UPLOAD_DIR } from '../store';
+import { accessTokenFor } from '../auth';
+import { dataMode, storageBucket, uploadObject } from '../supabase';
 import { notify, requireTeacher, type AuthedRequest } from '../auth';
 import { createLivekitToken, livekitConfig } from '../livekit';
 import { getCatalog } from '../catalog';
@@ -153,7 +156,7 @@ teacherRouter.delete('/lessons/:id', (req: AuthedRequest, res) => {
   res.json({ ok: true });
 });
 
-teacherRouter.post('/upload', upload.single('file'), (req: AuthedRequest, res) => {
+teacherRouter.post('/upload', upload.single('file'), async (req: AuthedRequest, res) => {
   if (!req.file) {
     res.status(400).json({ error: 'لم يتم إرسال ملف صالح (PDF أو صورة أو فيديو)' });
     return;
@@ -167,9 +170,61 @@ teacherRouter.post('/upload', upload.single('file'), (req: AuthedRequest, res) =
     ownerId: req.user!.id,
     createdAt: new Date().toISOString(),
   };
+
+  // Real project: store the file in the existing `madrasti-files` bucket.
+  if (dataMode() === 'supabase') {
+    const token = accessTokenFor(req);
+    if (!token) {
+      fs.rmSync(req.file.path, { force: true });
+      res.status(401).json({ error: 'انتهت جلسة Supabase، يرجى تسجيل الدخول مرة أخرى' });
+      return;
+    }
+    const safeName = req.file.originalname.replace(/[^\w.\-\u0600-\u06FF]/g, '_').slice(-80);
+    const objectPath = `uploads/${req.user!.id}/${Date.now()}-${safeName}`;
+    try {
+      const uploaded = await uploadObject({
+        objectPath,
+        data: fs.readFileSync(req.file.path),
+        contentType: req.file.mimetype,
+        accessToken: token,
+      });
+      if (!uploaded.ok) {
+        console.error('[teacher] storage upload rejected', uploaded.status, uploaded.error);
+        res.status(502).json({
+          error: 'تعذّر رفع الملف إلى مخزن Supabase (madrasti-files). تحقق من سياسات التخزين ثم أعد المحاولة.',
+        });
+        fs.rmSync(req.file.path, { force: true });
+        return;
+      }
+      fs.rmSync(req.file.path, { force: true });
+      const remote = { ...record, path: objectPath, storagePath: objectPath, bucket: storageBucket() };
+      db.uploads.push(remote);
+      save();
+      res.status(201).json({
+        id: remote.id,
+        name: remote.name,
+        size: remote.size,
+        url: `/api/files/${encodeURIComponent(objectPath)}`,
+        storage: 'supabase',
+        bucket: remote.bucket,
+      });
+      return;
+    } catch (error) {
+      console.error('[teacher] storage upload failed', error instanceof Error ? error.message : error);
+      res.status(502).json({ error: 'تعذّر الاتصال بمخزن Supabase. حاول لاحقًا.' });
+      return;
+    }
+  }
+
   db.uploads.push(record);
   save();
-  res.status(201).json({ id: record.id, name: record.name, size: record.size, url: `/api/files/${record.path}` });
+  res.status(201).json({
+    id: record.id,
+    name: record.name,
+    size: record.size,
+    url: `/api/files/${record.path}`,
+    storage: 'local',
+  });
 });
 
 teacherRouter.get('/assignments', (req: AuthedRequest, res) => {

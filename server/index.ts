@@ -8,6 +8,8 @@ import { teacherRouter } from './routes/teacher';
 import { adminRouter } from './routes/admin';
 import { managerRouter } from './routes/manager';
 import { db, UPLOAD_DIR } from './store';
+import { dataMode, downloadObject } from './supabase';
+import { accessTokenFor } from './auth';
 import { currentUser } from './auth';
 import { ensureDemoAccounts } from './bootstrap';
 
@@ -34,13 +36,36 @@ app.use('/api/admin', adminRouter);
 app.use('/api/manager', managerRouter);
 
 /** Authenticated file access: PDFs, images and recordings uploaded by teachers/admins. */
-app.get('/api/files/:name', (req, res) => {
+app.get('/api/files/:name', async (req, res) => {
   const user = currentUser(req);
   if (!user) {
     res.status(401).json({ error: 'يجب تسجيل الدخول لتنزيل الملفات' });
     return;
   }
-  const safeName = path.basename(req.params.name);
+  const requested = decodeURIComponent(req.params.name);
+  const safeName = requested.includes('/') ? requested : path.basename(requested);
+
+  // Real project: stream the private object from the madrasti-files bucket.
+  if (dataMode() === 'supabase' && safeName.includes('/')) {
+    const token = accessTokenFor(req);
+    if (!token) {
+      res.status(401).json({ error: 'انتهت جلسة Supabase، يرجى تسجيل الدخول مرة أخرى' });
+      return;
+    }
+    const remote = await downloadObject(safeName, token).catch(() => null);
+    if (!remote) {
+      res.status(404).json({ error: 'الملف غير موجود أو غير مسموح بالوصول إليه' });
+      return;
+    }
+    const record = db.uploads.find((u) => u.path === safeName || u.storagePath === safeName);
+    const contentType = record?.mime || remote.headers.get('content-type') || 'application/octet-stream';
+    res.setHeader('Content-Type', contentType);
+    res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(record?.name ?? 'file')}"`);
+    const buffer = Buffer.from(await remote.arrayBuffer());
+    res.send(buffer);
+    return;
+  }
+
   const filePath = path.join(UPLOAD_DIR, safeName);
   if (!fs.existsSync(filePath)) {
     res.status(404).json({ error: 'الملف غير موجود' });
