@@ -2,10 +2,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
 import type { AppDatabase } from '../shared/types';
-import { buildSeedDatabase, DEMO_ACCOUNTS } from './seed';
+import { buildSeedDatabase } from './seed';
 
 const DATA_DIR = process.env.DATA_DIR ? path.resolve(process.env.DATA_DIR) : path.join(process.cwd(), '.data');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
+const MODE_FILE = path.join(DATA_DIR, 'mode.json');
 
 /** True when the real Supabase project is configured, so demo identities must never be used. */
 function remoteMode(): boolean {
@@ -23,37 +24,52 @@ function ensureDirs() {
 
 function load(): AppDatabase {
   ensureDirs();
-  if (fs.existsSync(DB_FILE)) {
+  const mode: 'local' | 'supabase' = remoteMode() ? 'supabase' : 'local';
+  if (storedMode() === mode && fs.existsSync(DB_FILE)) {
     try {
       const parsed = JSON.parse(fs.readFileSync(DB_FILE, 'utf8')) as AppDatabase;
-      if (parsed && parsed.version === 1) {
-        if (remoteMode()) dropDemoIdentities(parsed);
-        return parsed;
-      }
+      if (parsed && parsed.version === 1) return parsed;
     } catch {
-      // fall through to a fresh seed when the file is unreadable
+      // fall through and rebuild below
     }
   }
-  const seeded = buildSeedDatabase();
-  if (remoteMode()) dropDemoIdentities(seeded);
-  persist(seeded);
-  return seeded;
+  // Switching modes never carries rows across: the real project must not inherit
+  // demo schools/lessons/lectures, and the demo must not inherit real-user cache.
+  const fresh = mode === 'supabase' ? emptyDatabase() : buildSeedDatabase();
+  persist(fresh);
+  rememberMode(mode);
+  return fresh;
+}
+
+/** Which dataset the cached local file belongs to, so the two modes never mix. */
+function storedMode(): 'local' | 'supabase' | null {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(MODE_FILE, 'utf8')) as { mode?: string };
+    return parsed.mode === 'supabase' || parsed.mode === 'local' ? parsed.mode : null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberMode(mode: 'local' | 'supabase') {
+  ensureDirs();
+  fs.writeFileSync(MODE_FILE, JSON.stringify({ mode }));
 }
 
 /**
- * Removes the demo logins (including the sample "يوسف الحارثي" account) from the local cache
- * whenever the app talks to the real Supabase project, so demo identities can never be
- * authenticated or reported as real users. Cached real Supabase profiles are kept.
+ * Structurally valid but completely empty local cache. Used when the app talks to the
+ * real Supabase project so no demo content (schools, lessons, lectures, sample
+ * accounts such as "يوسف الحارثي") is ever served as real data.
  */
-function dropDemoIdentities(data: AppDatabase) {
-  const demoEmails = new Set(DEMO_ACCOUNTS.map((account) => account.email.toLowerCase()));
-  const demoIds = new Set(data.users.filter((u) => demoEmails.has(u.email.toLowerCase())).map((u) => u.id));
-  if (demoIds.size === 0) return;
-  data.users = data.users.filter((u) => !demoIds.has(u.id));
-  data.sessions = data.sessions.filter((s) => !demoIds.has(s.userId));
-  data.resetTokens = data.resetTokens.filter((t) => !demoIds.has(t.userId));
-  data.notifications = data.notifications.filter((n) => !demoIds.has(n.userId));
-  demoIds.forEach((id) => delete data.passwordHashes[id]);
+function emptyDatabase(): AppDatabase {
+  const blank = buildSeedDatabase();
+  const record = blank as unknown as Record<string, unknown>;
+  for (const key of Object.keys(record)) {
+    const value = record[key];
+    if (Array.isArray(value)) value.length = 0;
+    else if (key === 'passwordHashes') record[key] = {};
+  }
+  return blank;
 }
 
 function persist(data: AppDatabase) {
