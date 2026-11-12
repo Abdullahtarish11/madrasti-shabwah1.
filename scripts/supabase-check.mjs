@@ -32,12 +32,21 @@ if (!ANON && !SERVICE) {
   process.exit(0);
 }
 
-const key = SERVICE || ANON;
+const emptyTables = [];
+console.log(
+  '\nملاحظة: rows=0 تعني إما جدولًا فارغًا فعلًا أو منع RLS للقراءة بالمفتاح العام؛ service_role يوضح الفرق.',
+);
 const headers = { apikey: key, Authorization: `Bearer ${key}` };
 let failures = 0;
 
 console.log(`Supabase project: ${URL_BASE}`);
 console.log(`Key used: ${SERVICE ? 'service_role (server only)' : 'anon'}`);
+const keyKind = key.startsWith('sb_publishable_')
+  ? 'publishable (new Supabase key format — supported)'
+  : key.split('.').length === 3
+    ? 'JWT legacy (supported)'
+    : 'unknown format';
+console.log(`Key format: ${keyKind}`);
 console.log(`Storage bucket: ${BUCKET}\n`);
 
 for (const table of TABLES) {
@@ -61,18 +70,34 @@ for (const table of TABLES) {
   }
 }
 
+/*
+ * Storage probe: the bucket-metadata endpoint (/storage/v1/bucket/:id) requires
+ * service_role or a storage admin token, so an anon/publishable key gets HTTP 400.
+ * The app itself uploads and lists objects, so we probe the same path it uses.
+ */
 try {
-  const response = await fetch(`${URL_BASE}/storage/v1/bucket/${encodeURIComponent(BUCKET)}`, { headers });
+  const response = await fetch(`${URL_BASE}/storage/v1/object/list/${encodeURIComponent(BUCKET)}`, {
+    method: 'POST',
+    headers: { ...headers, 'content-type': 'application/json' },
+    body: JSON.stringify({ prefix: '', limit: 5 }),
+  });
   if (response.ok) {
-    const info = await response.json();
-    console.log(`OK    bucket ${BUCKET} (public=${Boolean(info.public)})`);
+    const objects = await response.json();
+    const sample = Array.isArray(objects) ? objects.length : 0;
+    console.log(`OK    bucket ${BUCKET} (object listing allowed, sample objects=${sample})`);
   } else {
     failures += 1;
-    console.log(`FAIL  bucket ${BUCKET} HTTP ${response.status}`);
+    const detail = (await response.text()).replace(/\s+/g, ' ').slice(0, 160);
+    console.log(`FAIL  bucket ${BUCKET} listing HTTP ${response.status} ${detail}`);
+    console.log('      راجع وجود الـ bucket وسياسات storage في المشروع.');
   }
 } catch (error) {
   failures += 1;
   console.log(`FAIL  bucket ${BUCKET} ${error instanceof Error ? error.message : error}`);
+}
+
+if (!SERVICE) {
+  console.log('SKIP  bucket metadata (يتطلب service_role) — فحص القائمة أعلاه يكفي للتأكد من عمل المخزن.');
 }
 
 if (ANON) {
