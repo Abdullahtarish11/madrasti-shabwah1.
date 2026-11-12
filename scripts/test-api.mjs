@@ -23,8 +23,19 @@ function check(name, condition, detail = '') {
   console.log(`${ok ? '✓' : '✗'} ${name}${ok || !detail ? '' : ` (${detail})`}`);
 }
 
+// Force the isolated demo mode even when real Supabase credentials are injected
+// into this environment: the suite must never touch the live project.
 const server = spawn(process.execPath, ['--import', 'tsx', 'server/index.ts'], {
-  env: { ...process.env, PORT: String(PORT), DATA_DIR, NODE_ENV: 'test' },
+  env: {
+    ...process.env,
+    PORT: String(PORT),
+    DATA_DIR,
+    NODE_ENV: 'test',
+    SUPABASE_URL: '',
+    SUPABASE_ANON_KEY: '',
+    VITE_SUPABASE_ANON_KEY: '',
+    SUPABASE_SERVICE_ROLE_KEY: '',
+  },
   stdio: ['ignore', 'pipe', 'pipe'],
 });
 
