@@ -10,7 +10,7 @@ import type {
   Subject,
 } from '../shared/types';
 import { db } from './store';
-import { remoteCatalog } from './supabase';
+import { dataMode, remoteCatalog } from './supabase';
 
 export interface Catalog {
   districts: District[];
@@ -27,7 +27,6 @@ export interface Catalog {
 
 /** Merged catalog: Supabase rows win when present, local seed fills empty entities. */
 export async function getCatalog(): Promise<Catalog> {
-  const remote = await remoteCatalog();
   const local: Omit<Catalog, 'sources'> = {
     districts: db.districts,
     levels: db.levels,
@@ -39,6 +38,28 @@ export async function getCatalog(): Promise<Catalog> {
     programs: db.programs,
     announcements: db.announcements,
   };
+  // Connected to the real project: only real rows are served, demo seed is never mixed in.
+  if (dataMode() === 'supabase') {
+    const remote = await remoteCatalog();
+    const empty: Omit<Catalog, 'sources'> = {
+      districts: [],
+      levels: [],
+      grades: [],
+      schools: [],
+      subjects: [],
+      books: [],
+      colleges: [],
+      programs: [],
+      announcements: [],
+    };
+    const data = remote ?? empty;
+    const sources: Record<string, 'supabase' | 'local'> = {};
+    (Object.keys(empty) as (keyof typeof empty)[]).forEach((key) => {
+      sources[key] = 'supabase';
+    });
+    return { ...data, sources };
+  }
+  const remote = null;
   if (!remote) {
     return {
       ...local,
